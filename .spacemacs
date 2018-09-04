@@ -65,13 +65,14 @@ This function should only modify configuration layer settings."
      ;; web mode
      html
      ;; format tool
-     spacemacs-prettier
+     ;; spacemacs-prettier
      ;; markup language
-     ;; (org :variables
-     ;;      org-enable-github-support t
-     ;;      org-enable-bootstrap-support t)
-     ;; markdown
-     ;; yaml
+     (org :variables
+          org-enable-github-support t
+          org-enable-bootstrap-support t
+          org-enable-reveal-js-support t)
+     markdown
+     yaml
      ;; colorize mode
      (colors :variables
              colors-enable-nyan-cat-progress-bar '(display-graphic-p)
@@ -471,7 +472,10 @@ This function is called immediately after `dotspacemacs/init', before layer
 configuration.
 It is mostly for variables that should be set before packages are loaded.
 If you are unsure, try setting them in `dotspacemacs/user-config' first."
-  (setq-default git-magit-status-fullscreen t)
+  (setq-default git-magit-status-fullscreen t
+                web-mode-markup-indent-offset 2
+                python-indent-offset 2
+                insert-directory-program "gls")
   )
 
 (defun dotspacemacs/user-load ()
@@ -498,13 +502,14 @@ before packages are loaded."
   ;; 2. golden ratio
   (golden-ratio-mode 1)
 
-  ;; 3. disable flycheck spaceline conflict with nyancat
-  (setq spaceline-flycheck-info-p nil)
-  (setq spaceline-flycheck-warning-p nil)
-  (setq spaceline-flycheck-error-p nil)
+  ;; 3. disable flycheck spaceline which conflict with nyancat
+  (setq spaceline-flycheck-info-p nil
+        spaceline-flycheck-warning-p nil
+        spaceline-flycheck-error-p nil)
 
   ;; 4. rainbow-mode configuration enable for all programming mode
   (add-hook 'prog-mode-hook 'rainbow-identifiers-mode)
+  ;; (add-hook 'prog-mode-hook 'color-identifiers-mode)
 
   ;; 5. magit configuration
   (setq magit-process-finish-apply-ansi-colors t)
@@ -513,46 +518,56 @@ before packages are loaded."
   (defun apply-projectile-cmd ()
     (interactive)
     ((lambda (my-project-root my-project-file-name)
-       (message "Apply projectile commands")
-       (setq projectile-project-configure-cmd "yarn gen --d challenges/ --p ")
+       (message (format "Apply projectile commands at %s" (current-time-string)))
+       ;; (setq projectile-project-configure-cmd "yarn gen --directory packages/ --problem")
        ;; clear last used compilation command
        (remhash my-project-root projectile-compilation-cmd-map)
        (setq projectile-project-compilation-cmd (format "yarn compile %s" my-project-file-name))
        ;; clear last used test command
        (remhash my-project-root projectile-test-cmd-map)
-       (setq projectile-project-test-cmd (format "yarn test:f %s" my-project-file-name))
+       (setq projectile-project-test-cmd (format "yarn test:f %s.spec.ts" my-project-file-name))
        ;; clear last used run command
        (remhash my-project-root projectile-run-cmd-map)
        (setq projectile-project-run-cmd (format "yarn debug %s" my-project-file-name)))
      (projectile-compilation-dir)
-     (file-name-sans-extension
-      (file-relative-name buffer-file-name (projectile-compilation-dir))))
+     (file-name-sans-extension (file-relative-name buffer-file-name (projectile-compilation-dir))))
     )
 
   (defun init-projectile-project-nodejs ()
     (interactive)
-    ((lambda (my-project-file-name)
-       (message (format "Init Projectile Project for NodeJs to %s" my-project-file-name))
-       (projectile-register-project-type 'npm '("package.json")
-                                         :configure "yarn gen --d challenges/ --p "
-                                         :compile (format "yarn compile %s" my-project-file-name)
-                                         :test (format "yarn test:f %s" my-project-file-name)
-                                         :run (format "yarn debug %s" my-project-file-name)
-                                         :test-suffix ".spec"))
-     (file-name-sans-extension (file-relative-name buffer-file-name (projectile-compilation-dir))))
-    (remove-hook 'typescript-mode-hook 'init-projectile-project-nodejs))
+    (message (format "Init Projectile Project for NodeJs at %s" (current-time-string)))
+    (projectile-register-project-type
+     'npm '("package.json")
+     :configure "yarn gen --directory packages/ --problem"
+     :test-suffix ".spec"))
 
-  (spacemacs/set-leader-keys "pu" 'projectile-run-project)
-  (spacemacs/set-leader-keys "pC" 'projectile-configure-project)
-  (spacemacs/set-leader-keys "pA" 'apply-projectile-cmd)
-  (spacemacs/set-leader-keys "ps" 'prettier-js)
-  (add-hook 'typescript-mode-hook 'init-projectile-project-nodejs)
+  (spacemacs/set-leader-keys
+    "pu" #'projectile-run-project
+    "pC" #'projectile-configure-project
+    "pA" #'apply-projectile-cmd
+    "ps" #'prettier-js)
+  (setq projectile-switch-project-action #'projectile-dired)
+  (add-hook 'projectile-after-switch-project-hook
+            #'init-projectile-project-nodejs)
+  (add-hook 'typescript-mode-hook #'apply-projectile-cmd)
 
   ;; 7. prettier-js configuration
   ;; (add-hook 'typescript-mode-hook 'prettier-js-mode)
   ;; (add-hook 'typescript-mode-hook 'display-line-numbers-mode)
   (setq prettier-js-args '("--single-quote"
                            "--print-width" "80"))
+
+  ;; 8 config org-babel-execute function
+  (org-babel-do-load-languages 'org-babel-load-languages
+                               (append org-babel-load-languages
+                                       '((gnuplot . t)
+                                         (js . t))))
+
+  ;; 9. org configuration
+  (add-hook 'org-clock-out-hook #'org-todo)
+
+  ;; 10. org-reveal config
+  (setq org-reveal-root "file:///Users/somallg//.emacs.d/private/reveal.js-3.7.0")
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
